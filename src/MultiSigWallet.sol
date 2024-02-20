@@ -31,12 +31,14 @@ contract MultiSigWallet {
     }
 
     constructor (address [] memory _owners, uint _numConfirmationsNeeded ) {
+
         require(_owners.length > 0, "need owners");
         require(_numConfirmationsNeeded > 0 && _numConfirmationsNeeded < _owners.length, "Incorrect number of verifications");
         for(uint i = 0; i < _owners.length; i++) {
-            require(!isOwner[_owners[i]], "owner repeats");
-            isOwner[_owners[i]] = true;
-            owners.push(_owners[i]);
+            address owner_ = _owners[i];
+            require(!isOwner[owner_], "owner repeats");
+            isOwner[owner_] = true;
+            owners.push(owner_);
         }
         numConfirmationsNeeded = _numConfirmationsNeeded;
         
@@ -61,26 +63,32 @@ contract MultiSigWallet {
 
         require(trxIndex < transactions.length && trxIndex > 0, "Incorrect index");
         require(!isConfirmed[trxIndex][msg.sender], "Have comfired");
+        Transaction storage trx = transactions[trxIndex];
         isConfirmed[trxIndex][msg.sender] == true;
-        transactions[trxIndex].numConfirmations++;
+        trx.numConfirmations++;
 
     }
 
     function revokeComfirmations(uint trxIndex) public OnlyOwner NotExecuted(trxIndex) {
+
         require(trxIndex < transactions.length && trxIndex > 0, "Incorrect index");
         require(isConfirmed[trxIndex][msg.sender], "Haven't comfired");
+        Transaction storage trx = transactions[trxIndex];
         isConfirmed[trxIndex][msg.sender] == false;
-        transactions[trxIndex].numConfirmations--;
+        trx.numConfirmations--;
+
     }
 
     function executeTransaction(uint trxIndex) public OnlyOwner NotExecuted(trxIndex) {
+        Transaction storage trx = transactions[trxIndex];
         require(trxIndex < transactions.length && trxIndex > 0, "Incorrect index");
-        require(transactions[trxIndex].numConfirmations >= numConfirmationsNeeded, "Not enough authorizations");
-        transactions[trxIndex].executed = true;
-        (bool success, ) = transactions[trxIndex].to.call{value: transactions[trxIndex].value}(
-            transactions[trxIndex].data
+        require(trx.numConfirmations >= numConfirmationsNeeded, "Not enough authorizations");
+        trx.executed = true;
+        (bool success, ) = trx.to.call{value: transactions[trxIndex].value}(
+            trx.data
         );
         if (success == false) revert TxexecuteFailed(trxIndex);
+
     }
 
 
